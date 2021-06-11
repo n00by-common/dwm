@@ -113,7 +113,7 @@ typedef struct {
 
 struct Monitor {
 	char ltsymbol[16];
-	float mfact;
+	float mfact[32];
 	int nmaster;
 	int num;
 	int by;               /* bar geometry */
@@ -634,7 +634,8 @@ createmon(void)
 
 	m = ecalloc(1, sizeof(Monitor));
 	m->tagset[0] = m->tagset[1] = 1;
-	m->mfact = mfact;
+	for(int i = 0; i < 32; ++i)
+		m->mfact[i] = mfact;
 	m->nmaster = nmaster;
 	m->showbar = showbar;
 	m->topbar = topbar;
@@ -1511,6 +1512,15 @@ setlayout(const Arg *arg)
 		drawbar(selmon);
 }
 
+static int mfact_idx(Monitor *m) {
+	if(__builtin_popcount(m->seltags) != 1) {
+		return 31;
+	}
+	else {
+		return __builtin_clz(m->seltags);
+	}
+}
+
 /* arg > 1.0 will set mfact absolutely */
 void
 setmfact(const Arg *arg)
@@ -1519,10 +1529,11 @@ setmfact(const Arg *arg)
 
 	if (!arg || !selmon->lt[selmon->sellt]->arrange)
 		return;
-	f = arg->f < 1.0 ? arg->f + selmon->mfact : arg->f - 1.0;
+
+	f = arg->f < 1.0 ? arg->f + selmon->mfact[mfact_idx(selmon)] : arg->f - 1.0;
 	if (f < 0.1 || f > 0.9)
 		return;
-	selmon->mfact = f;
+	selmon->mfact[mfact_idx(selmon)] = f;
 	arrange(selmon);
 }
 
@@ -1681,7 +1692,7 @@ tile(Monitor *m)
 		return;
 
 	if (n > m->nmaster)
-		mw = m->nmaster ? (m->ww - (g = gappx)) * m->mfact : 0;
+		mw = m->nmaster ? (m->ww - (g = gappx)) * m->mfact[mfact_idx(m)] : 0;
 	else
 		mw = m->ww;
 	for (i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
